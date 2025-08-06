@@ -1,0 +1,248 @@
+################################################################################
+# FLACSO - Maestría en población y desarrollo
+# Trabajo final de Estadística III
+# Wisnel FRANCOIS
+# Fecha: 4 de agosto de 2025
+################################################################################
+
+
+pacman::p_load("tidyverse", "forcats", "janitor")
+
+#Abrimos base de datos
+setwd("C:/Users/DELL/Desktop/FLACSO 2024-2026/Tercer cuatrimestre/Estadistica III/Taller Estadistica III/Examen 2 Practico/enasem_2021_bd_csv (1)")
+
+
+base2 <- read_csv("SECT_A_C_D_E_PC_F_H_I_2021.csv")
+
+names(base2)
+
+table(base2$C45_21, useNA = "always")
+
+
+ #crear la variable dolor_bin
+base2 <- base2 %>%
+  mutate(dolor_bin = case_when(
+    C45_21 == 1 ~ 1,
+    C45_21 == 2 ~ 0,
+    TRUE ~ NA_real_
+  ))
+
+table(base2$dolor_bin, useNA = "always")
+
+#Eliminar los Na's en la variable dolor_bin
+df <- base2 %>%
+  filter(!is.na(dolor_bin))
+
+table(df1$dolor_bin)
+
+table(df$dolor_bin)
+
+
+df1<- df %>%
+  mutate(
+    # Variable dependiente: dolor sí/no
+    dolor_bin = case_when(
+      C45_21 == 1 ~ "Sí",
+      C45_21 == 2 ~ "No",
+      TRUE ~ NA_character_
+    ),
+    
+    # Sexo: Hombre / Mujer
+    sexo = case_when(
+      SEX_21 == 1 ~ "Hombre",
+      SEX_21 == 2 ~ "Mujer",
+      TRUE ~ NA_character_
+    ),
+    
+    # Estado civil: Con pareja / Sin pareja
+    pareja = case_when(
+      A3_21 %in% c(1, 2) ~ "Sí",
+      A3_21 %in% c(3, 4, 5, 6) ~ "No",
+      TRUE ~ NA_character_
+    ),
+    
+    # Seguro social: Sí / No
+    seguro_social = case_when(
+      D1_1_21 == 1 ~ "Sí",
+      D1_1_21 == 2 ~ "No",
+      TRUE ~ NA_character_
+    ),
+    
+    # Edad
+    edad = as.numeric(AGE_21),
+    
+    
+    # Variables de salud con etiquetas Sí / No
+    hipertension = case_when(C4_21 == 1 ~ "Sí", C4_21 == 2 ~ "No", C4_21 %in% c(8,9) ~ NA_character_),
+    diabetes     = case_when(C6_21 == 1 ~ "Sí", C6_21 == 2 ~ "No", C6_21 %in% c(8,9) ~ NA_character_),
+    cancer       = case_when(C12_21 == 1 ~ "Sí", C12_21 == 2 ~ "No", C12_21 %in% c(8,9) ~ NA_character_),
+    respiratoria = case_when(C19_21 == 1 ~ "Sí", C19_21 == 2 ~ "No", C19_21 %in% c(8,9) ~ NA_character_),
+    infarto      = case_when(C22A_21 == 1 ~ "Sí", C22A_21 == 2 ~ "No", C22A_21 %in% c(8,9) ~ NA_character_),
+    artritis     = case_when(C32_21 == 1 ~ "Sí", C32_21 == 2 ~ "No", C32_21 %in% c(8,9) ~ NA_character_),
+    caidas       = case_when(C37_21 == 1 ~ "Sí", C37_21 == 2 ~ "No", C37_21 %in% c(8,9) ~ NA_character_)
+  ) %>%
+  dplyr::select(
+    dolor_bin, sexo, pareja, seguro_social, edad,
+    hipertension, diabetes, cancer, respiratoria, infarto, artritis, caidas
+  ) %>%
+  drop_na()
+  
+  
+  #1. Frecuencia de dolor por sexo
+  
+# Tabla de contingencia
+table(df1$sexo, df1$dolor_bin)
+
+# Proporciones por sexo
+prop.table(table(df1$sexo, df1$dolor_bin), 1)
+
+# Prueba de chi-cuadrado
+chisq.test(table(df1$sexo, df1$dolor_bin))
+
+
+#2. Frecuencia de dolor por estado civil (pareja)
+
+# Tabla de contingencia
+table(df1$pareja, df1$dolor_bin)
+
+# Proporciones por estado civil
+prop.table(table(df1$pareja, df1$dolor_bin), 1)
+
+# Prueba de chi-cuadrado
+chisq.test(table(df1$pareja, df1$dolor_bin))
+
+
+df_long <- df1 %>%
+  dplyr::select(dolor_bin, hipertension, diabetes, cancer,
+                respiratoria, infarto, artritis, caidas) %>%
+  pivot_longer(cols = -dolor_bin,
+               names_to = "comorbilidad",
+               values_to = "presencia")
+
+
+
+#Proporción de personas con dolor según comorbilidad
+
+ggplot(df_long, aes(x = factor(presencia), fill = factor(dolor_bin))) +
+  geom_bar(position = "fill") +
+  facet_wrap(~ comorbilidad, ncol = 3, labeller = labeller(
+    comorbilidad = c(
+      hipertension = "Hipertensión",
+      diabetes = "Diabetes",
+      cancer = "Cáncer",
+      respiratoria = "Enf. Respiratoria",
+      infarto = "Infarto",
+      artritis = "Artritis",
+      caidas = "Caídas"
+    )
+  )) +
+  scale_fill_manual(values = c("gray70", "darkred"),
+                    name = "Dolor",
+                    labels = c("No", "Sí")) +
+  labs(x = "Presencia de comorbilidad (0 = No, 1 = Sí)",
+       y = "Proporción",
+       title = "Proporción de personas con dolor según comorbilidad") +
+  theme_minimal() +
+  theme(strip.text = element_text(face = "bold"))
+
+
+# Ajustamos un modelo de regresion logistica con todas las variables independientes
+# y repite el proceso con las variables que quedan hasta que todas sean significativas con un nivel de α =0,05.
+
+modelo_logit <- glm(
+  factor(dolor_bin) ~ factor(sexo) + factor(pareja) + factor(seguro_social) + 
+    edad +
+    factor(hipertension) + factor(diabetes) + factor(cancer) + factor(respiratoria) +
+    factor(infarto) + factor(artritis) + factor(caidas),
+  data = df1,
+  family = "binomial")
+
+summary(modelo_logit)
+
+#Call:
+# glm(formula = factor(dolor_bin) ~ factor(sexo) + factor(pareja) + 
+#       factor(seguro_social) + edad + factor(hipertension) + factor(diabetes) + 
+#       factor(cancer) + factor(respiratoria) + factor(infarto) + 
+#       factor(artritis) + factor(caidas), family = "binomial", data = df1)
+
+#Coefficients:
+#  Estimate Std. Error z value             Pr(>|z|)    
+#(Intercept)             -1.115611   0.150992  -7.389    0.000000000000148 ***
+#  factor(sexo)Mujer        0.376827   0.043142   8.735 < 0.0000000000000002 ***
+#  factor(pareja)Sí         0.004845   0.051238   0.095             0.924672    
+#factor(seguro_social)Sí -0.033981   0.041676  -0.815             0.414858    
+#edad                    -0.004975   0.002269  -2.193             0.028289 *  
+#  factor(hipertension)Sí   0.408390   0.043350   9.421 < 0.0000000000000002 ***
+#  factor(diabetes)Sí       0.167603   0.047527   3.526             0.000421 ***
+#  factor(cancer)Sí         0.256581   0.127289   2.016             0.043827 *  
+#  factor(respiratoria)Sí   0.597645   0.095785   6.239    0.000000000439118 ***
+#  factor(infarto)Sí        0.440164   0.111544   3.946    0.000079436809406 ***
+#  factor(artritis)Sí       1.248459   0.068855  18.132 < 0.0000000000000002 ***
+#  factor(caidas)Sí         0.638230   0.042000  15.196 < 0.0000000000000002 ***
+#  ---
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+#(Dispersion parameter for binomial family taken to be 1)
+
+#Null deviance: 14839  on 11324  degrees of freedom
+#Residual deviance: 13751  on 11313  degrees of freedom
+#AIC: 13775
+
+#Number of Fisher Scoring iterations: 4
+
+options(scipen = 999)
+
+
+#Modelo con las variables significativas #quitar pareja y seguro social
+
+modelo_logit2 <- glm(
+  factor(dolor_bin) ~ factor(sexo) + 
+    edad +
+    factor(hipertension) + factor(diabetes) + factor(cancer) + factor(respiratoria) +
+    factor(infarto) + factor(artritis) + factor(caidas),
+  data = df1,
+  family = "binomial")
+
+summary(modelo_logit2)
+
+
+#Call:
+# glm(formula = factor(dolor_bin) ~ factor(sexo) + edad + factor(hipertension) + 
+factor(diabetes) + factor(cancer) + factor(respiratoria) + 
+  factor(infarto) + factor(artritis) + factor(caidas), family = "binomial", 
+data = df1)
+
+#Coefficients:
+# Estimate Std. Error z value             Pr(>|z|)    
+#(Intercept)            -1.118986   0.148093  -7.556   0.0000000000000416 ***
+#factor(sexo)Mujer       0.375838   0.043052   8.730 < 0.0000000000000002 ***
+#edad                   -0.005095   0.002254  -2.260             0.023810 *  
+# factor(hipertension)Sí  0.406293   0.043261   9.392 < 0.0000000000000002 ***
+#factor(diabetes)Sí      0.166263   0.047494   3.501             0.000464 ***
+# factor(cancer)Sí        0.253607   0.127219   1.993             0.046210 *  
+# factor(respiratoria)Sí  0.595854   0.095741   6.224   0.0000000004859647 ***
+# factor(infarto)Sí       0.436441   0.111435   3.917   0.0000898239338369 ***
+# factor(artritis)Sí      1.248644   0.068851  18.135 < 0.0000000000000002 ***
+# factor(caidas)Sí        0.640016   0.041928  15.265 < 0.0000000000000002 ***
+# ---
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+#(Dispersion parameter for binomial family taken to be 1)
+
+#Null deviance: 14839  on 11324  degrees of freedom
+#Residual deviance: 13752  on 11315  degrees of freedom
+#AIC: 13772
+
+#Number of Fisher Scoring iterations: 4
+
+
+
+#Con las variables que resultaron significativas, estimamos un modelo con interacciones.
+
+modelo_logit3 <- glm(
+  factor(dolor_bin) ~ (factor(sexo) + edad + factor(hipertension) + factor(diabetes) + factor(cancer) + factor(respiratoria) +
+                         factor(infarto) + factor(artritis) + factor(caidas))^2,
+  data = df1,
+  family = "binomial")
+
+summary(modelo_logit3)
