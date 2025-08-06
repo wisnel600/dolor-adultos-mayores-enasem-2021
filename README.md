@@ -16,8 +16,7 @@ Este proyecto analiza los factores sociodemográficos y clínicos asociados con 
 - Clínicas: hipertensión, diabetes, cáncer, enfermedades respiratorias, infarto, artritis, caídas
 
 ## 🗃️ Estructura del repositorio
-- `scripts/`: Código en R
-- `data/`: Datos utilizados 
+- `scripts/`: Código en R 
 - `informe/`: Documento con resultados y conclusiones
 
 ## 📊 Resultados principales
